@@ -73,6 +73,7 @@
                     :before before :after after
                     :added-item? (> (or (:items after) 0) (or (:items before) 0))
                     :errors (mapv :text errs) :warnings (mapv :text warns)
+                    :debug-logs (->> @logs (map :text) (filter #(re-find #"kami-dbg" (str %))) vec)
                     :screenshot shot}]
         (println "\n===== freeboard diagnosis =====")
         (doseq [[k v] [["diagnosis" (name diag)] ["hint" (:hint report)]
