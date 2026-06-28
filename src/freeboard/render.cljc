@@ -15,7 +15,7 @@
    Freeform-style canvas)."
   [0.94 0.917 0.839 1.0])
 
-(defn- item->draw [vp it]
+(defn- item->draw [board vp it]
   (let [[sx sy] (b/world->screen vp [(:item/x it) (:item/y it)])
         z       (:zoom vp)
         base {:eid    (:item/id it)
@@ -28,17 +28,26 @@
       :text  (assoc base :text/runs (:text/runs it))
       :image (assoc base :image/blob (:image/blob it))
       :shape (assoc base :shape/type (:shape/type it :rect) :vector/points (:vector/points it))
-      :ink   (assoc base :ink/points (mapv #(b/world->screen vp %) (:ink/points it [])) :ink/width (* (:ink/width it 2.0) z))
+      :ink   (assoc base :ink/polyline (mapv #(b/world->screen vp %) (:ink/points it []))
+                    :ink/width (* (:ink/width it 2.0) z))
       :frame (assoc base :frame/title (:frame/title it))
+      :connector (let [eps (b/connector-endpoints board it)]
+                   (assoc base :connector/line (when eps (mapv #(b/world->screen vp %) eps))))
       base)))
 
 (defn draw-list
-  "Build a screen-space, z-sorted draw-list for the current viewport."
+  "Build a screen-space, z-sorted draw-list for the current viewport.
+   Connectors resolve their endpoints from linked items; ink/connectors are
+   polylines, everything else a rect."
   [board]
   (let [vp (:freeboard/viewport board)]
     {:clear nintendo-cream
      :viewport vp
-     :draws (mapv #(item->draw vp %) (b/items-z-asc board))}))
+     :draws (->> (b/items-z-asc board)
+                 (map #(item->draw board vp %))
+                 ;; drop connectors whose endpoints vanished
+                 (remove #(and (= :connector (:kind %)) (nil? (:connector/line %))))
+                 vec)}))
 
 ;; ---- kami ECS adapter ------------------------------------------------------
 ;; A thin bridge to kami-engine-sdk-clj scene entities. Each draw → an entity

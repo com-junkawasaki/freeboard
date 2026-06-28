@@ -7,16 +7,30 @@
    NOTE: the kami wasm host attach (`submit-draws!`) binds to
    kami-engine-sdk-clj's browser backend; index.html boots it after wasm init."
   (:require [freeboard.board :as b]
-            [freeboard.render :as r]
-            [freeboard.import :as imp]))
+            [freeboard.import :as imp]
+            [freeboard.scene :as sc]
+            [kami.ecs :as ecs]
+            [kami.render :as kr]
+            [kami.gpu :as gpu]
+            [kami.backend.browser :as kb]))
 
 (defonce app (atom {:board (b/new-board "Freeboard")
-                    :drag  nil}))                              ; {:mode :item-id :last [x y]}
+                    :drag  nil :frame 0}))                     ; {:mode :item-id :last [x y]}
 
-;; ---- host bridge (bound to kami-render wasm at boot) ----------------------
-(defonce ^:private host (atom nil))                            ; fn: draw-list → unit
-(defn set-host! [submit-fn] (reset! host submit-fn))
-(defn- present! [] (when-let [h @host] (h (r/draw-list (:board @app)))))
+;; ---- kami host (kami-render/wgpu via kami-engine-sdk-clj) -------------------
+(defonce ^:private backend (atom nil))
+(defonce ^:private aspect  (atom (/ 16.0 9.0)))
+
+(defn- present!
+  "Build the kami ECS world from the board, assemble one render-IR frame, and
+   submit it (v2 packing = per-instance tint). The renderer is a dumb executor."
+  []
+  (when-let [be @backend]
+    (let [snap  (sc/scene-snapshot (:board @app))
+          world (-> (ecs/world) (ecs/load-snapshot {:snapshot/entities (:snapshot/entities snap)}))
+          frame (kr/frame world {:n (:frame @app) :aspect @aspect :clear sc/nintendo-cream})]
+      (gpu/submit! be frame {:tint? true})
+      (swap! app update :frame inc))))
 
 ;; ---- input → ops -----------------------------------------------------------
 (defn on-pointer-down [sx sy]
@@ -63,11 +77,20 @@
     (swap! app update :board imp/drop-doc kasane-doc [wx wy])
     (present!)))
 
+(defn ^:export resize [w h]
+  (reset! aspect (/ (double w) (max 1.0 (double h))))
+  (when-let [be @backend] (gpu/resize! be w h))
+  (present!))
+
 ;; ---- boot ------------------------------------------------------------------
 (defn ^:export boot
-  "Called from index.html after the kami-render wasm host is ready. `submit-fn`
-   takes a freeboard draw-list and renders it on the GPU."
-  [submit-fn]
-  (set-host! submit-fn)
-  (present!)
-  (js/console.log "freeboard booted"))
+  "Boot against a canvas: create the kami.gpu browser backend (kami-clj-host
+   wasm → kami-render), register freeboard assets once, then present. Called
+   from index.html after WebGPU is available."
+  [canvas]
+  (-> (kb/create {:canvas canvas})
+      (.then (fn [be]
+               (reset! backend be)
+               (gpu/ensure-assets! be {:snapshot/assets (:snapshot/assets (sc/scene-snapshot (:board @app)))})
+               (present!)
+               (js/console.log "freeboard booted")))))

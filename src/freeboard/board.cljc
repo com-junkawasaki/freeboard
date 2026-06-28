@@ -75,6 +75,53 @@
   (let [z (:freeboard/next-z board)]
     (-> board (update-item id assoc :item/z z) (update :freeboard/next-z inc))))
 
+(defn item-center [{:item/keys [x y w h]}] [(+ x (/ w 2.0)) (+ y (/ h 2.0))])
+
+;; ---- connectors ------------------------------------------------------------
+(defn add-connector
+  "Connect two items by id. The connector carries no fixed geometry — its
+   endpoints are resolved from the linked items at render time (so it follows
+   them when they move)."
+  [board from-id to-id]
+  (add-item board {:item/kind :connector :connector/from from-id :connector/to to-id
+                   :item/x 0 :item/y 0 :item/w 0 :item/h 0 :item/stroke "#888"}))
+
+(defn connector-endpoints
+  "World-space [[x1 y1] [x2 y2]] for a connector, from its linked items' centers
+   (nil if either endpoint is missing)."
+  [board conn]
+  (let [a (item-by-id board (:connector/from conn))
+        b (item-by-id board (:connector/to conn))]
+    (when (and a b) [(item-center a) (item-center b)])))
+
+;; ---- ink (freehand) --------------------------------------------------------
+(defn- points-bbox [pts]
+  (let [xs (map first pts) ys (map second pts)]
+    [(apply min xs) (apply min ys) (- (apply max xs) (apply min xs)) (- (apply max ys) (apply min ys))]))
+
+(defn add-ink
+  "Add a freehand ink stroke from world-space points."
+  ([board points] (add-ink board points 2.0 "#222"))
+  ([board points width stroke]
+   (let [[x y w h] (points-bbox points)]
+     (add-item board {:item/kind :ink :ink/points (vec points) :ink/width width
+                      :item/stroke stroke :item/x x :item/y y :item/w (max 1.0 w) :item/h (max 1.0 h)}))))
+
+(defn extend-ink
+  "Append a world point to an ink item, updating its bbox."
+  [board id pt]
+  (update-item board id
+               (fn [it] (let [pts (conj (:ink/points it []) pt)
+                              [x y w h] (points-bbox pts)]
+                          (assoc it :ink/points pts :item/x x :item/y y
+                                 :item/w (max 1.0 w) :item/h (max 1.0 h))))))
+
+;; ---- text ------------------------------------------------------------------
+(defn set-text
+  "Replace an item's text runs (plain string → single run)."
+  [board id text]
+  (update-item board id assoc :text/runs (if (string? text) [{:text text}] (vec text))))
+
 ;; ---- hit testing -----------------------------------------------------------
 (defn- in-rect? [{:item/keys [x y w h]} [wx wy]]
   (and (<= x wx (+ x w)) (<= y wy (+ y h))))

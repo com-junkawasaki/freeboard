@@ -15,18 +15,16 @@
   <canvas id="stage"></canvas>
   <div id="toolbar"><button id="add-sticky">＋ sticky</button></div>
 
-  <!-- 1) kami-render (Rust/wgpu) wasm host, then 2) the cljs brain module.
-       The host exposes submit(draw-list); freeboard.web.boot wires input→ops. -->
+  <!-- The cljs brain module (freeboard.web) creates the kami.gpu browser
+       backend itself (kami-clj-host wasm → kami-render/wgpu) inside boot. -->
   <script type="module">
-    import { initKamiHost } from "/js/kami-host.js"; // kami-engine-sdk-clj browser backend (WebGPU)
-    const canvas = document.getElementById("stage");
-    const fit = () => { canvas.width = innerWidth*devicePixelRatio; canvas.height = innerHeight*devicePixelRatio; };
-    fit(); addEventListener("resize", fit);
-
-    const host = await initKamiHost(canvas);     // → { submit(drawList) }
     await import("/js/freeboard.js");             // shadow-cljs output (advanced)
     const fb = window.freeboard.web;
-    fb.boot(host.submit);
+    const canvas = document.getElementById("stage");
+    const fit = () => { canvas.width = innerWidth*devicePixelRatio; canvas.height = innerHeight*devicePixelRatio; fb.resize(canvas.width, canvas.height); };
+    addEventListener("resize", fit);
+    await fb.boot(canvas);                          // WebGPU adapter/device + assets, then present
+    fit();
 
     const pt = e => [e.clientX*devicePixelRatio, e.clientY*devicePixelRatio];
     canvas.addEventListener("pointerdown", e => fb.on_pointer_down(...pt(e)));
