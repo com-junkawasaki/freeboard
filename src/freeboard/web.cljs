@@ -9,6 +9,9 @@
   (:require [freeboard.board :as b]
             [freeboard.import :as imp]
             [freeboard.scene :as sc]
+            [freeboard.render-ir :as rir]
+            [freeboard.doc :as fdoc]
+            [clojure.edn :as edn]
             [kami.ecs :as ecs]
             [kami.render :as kr]
             [kami.gpu :as gpu]
@@ -135,6 +138,21 @@
               :backend   (boolean @backend)                    ; kami GPU host bound?
               :kamiHost  (boolean (.-KamiCljHost js/window))    ; wasm GPU host present?
               :webgpu    (boolean (.-gpu js/navigator))})))     ; WebGPU available?
+
+;; ---- canonical EDN interop (kami render-IR + Genko doc) --------------------
+(defn ^:export render-ir
+  "Current board as the canonical kami render-IR EDN string (ADR-0044)."
+  [] (pr-str (rir/board->render-ir (:board @app) [(:w @app) (:h @app)])))
+
+(defn ^:export save-doc
+  "Current board as the shared Genko-envelope canvas-document EDN string."
+  [] (pr-str (fdoc/board->doc (:board @app))))
+
+(defn ^:export open-doc
+  "Load a board from a shared canvas-document EDN string (Genko envelope)."
+  [edn-str]
+  (swap! app assoc :board (fdoc/doc->board (edn/read-string edn-str)))
+  (present!))
 
 (defn ^:export resize [w h]
   (swap! app assoc :w w :h h)
