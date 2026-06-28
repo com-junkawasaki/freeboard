@@ -25,16 +25,18 @@
   (.evaluate page "() => { const b=document.getElementById('add-sticky'); if(b){b.click();return true;} return false; }"))
 
 (def ^:private hints
-  {:app-not-loaded           "freeboard.js didn't load / window.freeboard.web missing — check shadow release + <script src>."
+  {:bundle-load-error        "'goog is not defined' — a shadow-cljs DEV (:compile) bundle was loaded via ESM import(); the goog module-loader can't bootstrap that way. Build the :advanced RELEASE (single self-contained file): scripts/build.sh / `clojure -M:shadow ... release app`."
+   :app-not-loaded           "window.freeboard.web missing — freeboard.js didn't load. Check the <script>/import in index.html and that public/js/freeboard.js exists."
    :no-webgpu                "navigator.gpu absent — launch Chromium with --enable-unsafe-webgpu --enable-features=Vulkan, or a WebGPU browser."
-   :kami-host-wasm-missing   "window.KamiCljHost undefined — public/wasm not built. Run scripts/build.sh (wasm-pack kami-clj-host)."
+   :kami-host-wasm-missing   "window.KamiCljHost undefined — public/wasm not built. Run scripts/build.sh (wasm-pack kami-clj-host); use --dev for a fast host build."
    :host-boot-failed         "KamiCljHost present but backend nil — KamiCljHost.create rejected (adapter/device). See :errors."
    :renderer-never-presented "backend bound but 0 frames — present!/submit! not firing. See :errors."
    :input-not-wired          "GPU ok but add-sticky didn't grow board state — input→ops wiring broken."
    :ok                       "board state mutates + GPU host bound + frames presented — app is live."})
 
-(defn- classify [before after]
-  (cond (:error before)                     :app-not-loaded
+(defn- classify [before after errors]
+  (cond (some #(re-find #"goog is not defined" (str %)) errors) :bundle-load-error
+        (:error before)                     :app-not-loaded
         (not (:webgpu after))               :no-webgpu
         (not (:kamiHost after))             :kami-host-wasm-missing
         (not (:backend after))              :host-boot-failed
@@ -64,7 +66,7 @@
             errs   (filterv #(#{"error" "pageerror"} (:type %)) @logs)
             warns  (filterv #(= "warning" (:type %)) @logs)
             _      (when screenshot (screenshot shot))
-            diag   (classify before after)
+            diag   (classify before after (map :text errs))
             report {:diagnosis diag :hint (hints diag)
                     :before before :after after
                     :added-item? (> (or (:items after) 0) (or (:items before) 0))

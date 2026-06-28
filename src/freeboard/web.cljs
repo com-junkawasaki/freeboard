@@ -94,8 +94,8 @@
               :editing   (boolean editing)
               :dragging  (boolean drag)
               :backend   (boolean @backend)                    ; kami GPU host bound?
-              :kamiHost  (boolean (exists? js/window.KamiCljHost))
-              :webgpu    (boolean (exists? js/navigator.gpu))})))
+              :kamiHost  (boolean (.-KamiCljHost js/window))    ; wasm GPU host present?
+              :webgpu    (boolean (.-gpu js/navigator))})))     ; WebGPU available?
 
 (defn ^:export resize [w h]
   (swap! app assoc :w w :h h)
