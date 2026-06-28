@@ -124,11 +124,11 @@
 
 ;; ---- boot ------------------------------------------------------------------
 (defn ^:export boot
-  "Boot against a canvas: create the kami.gpu browser backend (kami-clj-host
-   wasm → kami-render), register freeboard assets once, then present. Called
-   from index.html after WebGPU is available."
-  [canvas]
-  (-> (kb/create {:canvas canvas})
+  "Boot against a canvas element id: create the kami.gpu browser backend
+   (kami-clj-host wasm → kami-render), register freeboard assets once, then
+   present. Called from index.html after WebGPU is available."
+  [canvas-id]
+  (-> (kb/make {:canvas canvas-id})
       (.then (fn [be]
                (reset! backend be)
                (gpu/ensure-assets! be {:snapshot/assets (:snapshot/assets (sc/scene-snapshot (:board @app)))})

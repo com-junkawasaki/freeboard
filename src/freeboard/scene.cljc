@@ -9,6 +9,8 @@
   (:require [freeboard.board :as b]
             [freeboard.render :as r]))
 
+(def nintendo-cream r/nintendo-cream)                          ; re-export for web.cljs
+
 (defn hex->rgba
   "\"#rrggbb\" → [r g b 1.0] floats (nil/invalid → white)."
   [hex]

@@ -23,7 +23,7 @@
     const canvas = document.getElementById("stage");
     const fit = () => { canvas.width = innerWidth*devicePixelRatio; canvas.height = innerHeight*devicePixelRatio; fb.resize(canvas.width, canvas.height); };
     addEventListener("resize", fit);
-    await fb.boot(canvas);                          // WebGPU adapter/device + assets, then present
+    await fb.boot("stage");                         // canvas id → WebGPU adapter/device + assets, then present
     fit();
 
     const pt = e => [e.clientX*devicePixelRatio, e.clientY*devicePixelRatio];
