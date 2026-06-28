@@ -92,13 +92,15 @@
    :transform/translation [0.0 0.0 0.0]})
 
 (def quad-mesh
-  ;; unit quad [0,0]→[1,1], pos-only (final vertex layout tuned to kami-render's
-  ;; 2D vertex shader at integration).
+  ;; unit quad [0,0]→[1,1], pos-only. Vertices/indices live under :asset/data —
+  ;; the shape kami.gpu/ensure-assets! reads (register-mesh! id (:vertices data)
+  ;; (:indices data)). Putting them top-level → nil → a 0-size GPU buffer →
+  ;; wgpu Buffer::slice panic at draw (found via freeboard.debug).
   {:asset/id "freeboard:quad" :asset/kind :mesh
-   :vertices [0.0 0.0 0.0  1.0 0.0 0.0  1.0 1.0 0.0  0.0 1.0 0.0]
-   :indices  [0 1 2  0 2 3]})
+   :asset/data {:vertices [0.0 0.0 0.0  1.0 0.0 0.0  1.0 1.0 0.0  0.0 1.0 0.0]
+                :indices  [0 1 2  0 2 3]}})
 
-(def flat-material {:asset/id "freeboard:flat" :asset/kind :material :params []})
+(def flat-material {:asset/id "freeboard:flat" :asset/kind :material :asset/data {:params []}})
 
 (defn scene-snapshot
   "{:snapshot/assets [...] :snapshot/entities [...]} — assets via

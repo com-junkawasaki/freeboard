@@ -32,10 +32,12 @@
    :host-boot-failed         "KamiCljHost present but backend nil — KamiCljHost.create rejected (adapter/device). See :errors."
    :renderer-never-presented "backend bound but 0 frames — present!/submit! not firing. See :errors."
    :input-not-wired          "GPU ok but add-sticky didn't grow board state — input→ops wiring broken."
+   :gpu-host-panic           "kami-clj-host (Rust/wgpu) panicked during submit_frame — the canvas stays blank/black though the JS pipeline fired. See :errors for the wasm stack (e.g. Buffer::slice / check_buffer_bounds = a 0-size buffer). Fix in kami-clj-host + rebuild the wasm."
    :ok                       "board state mutates + GPU host bound + frames presented — app is live."})
 
 (defn- classify [before after errors]
   (cond (some #(re-find #"goog is not defined" (str %)) errors) :bundle-load-error
+        (some #(re-find #"unreachable|rust_panic|wgpu::|RuntimeError" (str %)) errors) :gpu-host-panic
         (:error before)                     :app-not-loaded
         (not (:webgpu after))               :no-webgpu
         (not (:kamiHost after))             :kami-host-wasm-missing
