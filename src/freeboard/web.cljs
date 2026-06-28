@@ -78,6 +78,25 @@
     (swap! app update :board imp/drop-doc kasane-doc [wx wy])
     (present!)))
 
+(defn ^:export debug-state
+  "Introspection for the browser-use-clj debug harness (freeboard.debug):
+   a JSON snapshot of live app health — board size, viewport, whether the kami
+   GPU host booted (backend) and how many frames were presented. If backend is
+   false / frame is 0 the renderer never ran (e.g. missing wasm host / no
+   WebGPU) — the board state still mutates, so the app *looks* dead."
+  []
+  (let [{:keys [board w h frame editing drag]} @app]
+    (clj->js {:items     (count (:freeboard/items board))
+              :selection (count (b/selection board))
+              :viewport  (:freeboard/viewport board)
+              :canvas    {:w w :h h}
+              :frame     frame
+              :editing   (boolean editing)
+              :dragging  (boolean drag)
+              :backend   (boolean @backend)                    ; kami GPU host bound?
+              :kamiHost  (boolean (exists? js/window.KamiCljHost))
+              :webgpu    (boolean (exists? js/navigator.gpu))})))
+
 (defn ^:export resize [w h]
   (swap! app assoc :w w :h h)
   (when-let [be @backend] (gpu/resize! be w h))

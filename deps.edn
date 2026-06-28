@@ -15,4 +15,9 @@
  :aliases
  {:malli  {:extra-deps {metosin/malli {:mvn/version "0.16.4"}}}      ; freeboard.schema (validation)
   :shadow {:extra-deps {thheller/shadow-cljs {:mvn/version "2.28.20"}}}
-  :test   {:extra-paths ["test"]}}}
+  :test   {:extra-paths ["test"]}
+  ;; freeboard.debug — live browser diagnosis via browser-use-clj (Playwright)
+  :debug  {:extra-paths ["dev"]
+           :extra-deps {io.github.com-junkawasaki/browser-use-clj {:local/root "../browser-use-clj"}
+                        com.microsoft.playwright/playwright {:mvn/version "1.44.0"}
+                        cheshire/cheshire {:mvn/version "5.13.0"}}}}}
